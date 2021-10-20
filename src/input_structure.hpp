@@ -6,6 +6,8 @@
  *         mytftpclient
  */
 
+#define EMPTY 0
+
 #ifndef __ARGUMENT_STRUCTURE__
 #define __ARGUMENT_STRUCTURE__
 
@@ -21,17 +23,17 @@
  * @size: maximum size of blocks in octets, this value is sugested by client
  * @multicast: client asks for mulcticast transfer
  * @data_mode: data encoding in packets - ascii, netascii, binary, octet
- * @address, port: address and port of the server, in ipv4 or ipv6 - #TODO
+ * @ip_addres: address and port of the server, in ipv4 or ipv6
  */
 struct input_structure {
-   public:
-    std::string file_name;
-    int app_mode; /* 0 - no user input, 1 - read mode, 2 - write mode */
-    unsigned int timeout;
-    unsigned int size;
-    bool multicast;
-    int data_mode;
-    // int address, int port; #TODO - vymyslet typ promenene pro tohle
+  public:
+   std::string file_name;
+   int app_mode; /* 0 - no user input, 1 - read mode, 2 - write mode */
+   int timeout;
+   int size;
+   bool multicast;
+   int data_mode;
+   std::string ip_address;
 };
 
 /**
@@ -58,24 +60,30 @@ void add_file_name(input_structure *store_args, std::string *file);
  * @name; add_timeout
  * @param input_structure: structure to write user input into
  */
-void add_timeout(input_structure *store_args);
+void add_timeout(input_structure *store_args, int seconds);
 
 /**
  * @name; add_size
  * @param input_structure: structure to write user input into
  */
-void add_size(input_structure *store_args);
+void add_size(input_structure *store_args, int size);
 
 /**
- * @name; add_multicast
+ * @name: add_multicast
  * @param input_structure: structure to write user input into
  */
 void add_multicast(input_structure *store_args);
 
 /**
- * @name; add_data_mode
+ * @name: add_data_mode
  * @param input_structure: structure to write user input into
  */
-void add_data_mode(input_structure *store_args);
+void add_data_mode(input_structure *store_args, int data_mode);
+
+/**
+ * @name: add_ip_address
+ * @param input_strucutre: structure to write user input into
+ */
+void add_ip_address(input_structure *store_args, std::string ip_address);
 
 #endif
