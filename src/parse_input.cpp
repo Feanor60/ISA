@@ -161,11 +161,19 @@ bool get_arg(std::string *line, std::string *arg, std::size_t pos) {
   std::string space(" ");
   /* stard reading file name 3 chars after flag */
   std::size_t arg_pos = pos + 3;
-  /* look for next space in case of file name not being last argument */
-  std::size_t arg_end = line->find(space, arg_pos);
+  std::size_t arg_end;
 
   /* clear out string in case of multiple calls */
   arg->erase();
+
+  for(std::size_t i = arg_pos; i < line->length(); i++) {
+    if(line->at(i) != '\40')
+      break;
+
+    arg_pos++;
+  }
+
+  arg_end = line->find(space, arg_pos);
 
   if (arg_end == std::string::npos) {
     line->append(" ");
@@ -175,7 +183,6 @@ bool get_arg(std::string *line, std::string *arg, std::size_t pos) {
   if (arg_end == std::string::npos) {
     return false;
   }
-
   std::size_t name = arg_end - arg_pos;
 
   line->copy(buffer, name, arg_pos);
@@ -188,6 +195,8 @@ bool get_arg(std::string *line, std::string *arg, std::size_t pos) {
   for (int i = 0; i < 100; i++) {
     buffer[i] = 0;
   }
+
+  std::cout << "arg is: \"" << arg->data() << "\"\n";
 
   return true;
 }
