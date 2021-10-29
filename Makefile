@@ -13,7 +13,7 @@ OBJ_DIR := ./obj
 
 # flags
 CPP_FLAGS = -g -Wall -Werror
-LD_FLAGS = -lreadline 
+LD_FLAGS = -lpcap
 
 # source files
 SRC_FILES = $(SRC_DIR)/*.cpp
