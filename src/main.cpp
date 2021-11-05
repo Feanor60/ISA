@@ -10,12 +10,12 @@
  */
 
 #include <string.h>
-
 #include <iostream>
 #include <string>
 
 #include "input_structure.hpp"
 #include "parse_input.hpp"
+#include "tftp_client.hpp"
 
 void init_struct(input_structure *store_args) {
 	store_args->app_mode = 0;
@@ -47,6 +47,8 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Error: wrong input\n");
       continue;
     }
+
+    start_tftp_clinet(store_args);
 
     delete store_args;
   }
