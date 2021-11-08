@@ -23,7 +23,8 @@
  * @size: maximum size of blocks in octets, this value is sugested by client
  * @multicast: client asks for mulcticast transfer
  * @data_mode: data encoding in packets - ascii, netascii, binary, octet
- * @ip_addres: address and port of the server, in ipv4 or ipv6
+ * @ip_addres: address of the server, in ipv4 or ipv6
+ * @port_number: port where server is listening
  */
 struct input_structure {
   public:
@@ -34,6 +35,7 @@ struct input_structure {
    bool multicast;
    int data_mode;
    std::string ip_address;
+   std::size_t port_number;
 };
 
 /**
@@ -52,38 +54,36 @@ void add_app_mode_write(input_structure *store_args);
 
 /**
  * @name; add_file_name
- * @param input_structure: structure to write user input into
  */
 void add_file_name(input_structure *store_args, std::string *file);
 
 /**
  * @name; add_timeout
- * @param input_structure: structure to write user input into
  */
 void add_timeout(input_structure *store_args, int seconds);
 
 /**
  * @name; add_size
- * @param input_structure: structure to write user input into
  */
 void add_size(input_structure *store_args, int size);
 
 /**
  * @name: add_multicast
- * @param input_structure: structure to write user input into
  */
 void add_multicast(input_structure *store_args);
 
 /**
  * @name: add_data_mode
- * @param input_structure: structure to write user input into
  */
 void add_data_mode(input_structure *store_args, int data_mode);
 
 /**
  * @name: add_ip_address
- * @param input_strucutre: structure to write user input into
  */
 void add_ip_address(input_structure *store_args, std::string ip_address);
 
+/**
+ * @name: add_port_number
+ */
+void add_port_number(input_structure *store_args, std::size_t port_n);
 #endif

@@ -23,6 +23,7 @@ bool parse_input(std::string *line, input_structure *store_args) {
   std::string address("-a");
   std::string file_name;
 
+  std::size_t port_n;
   std::size_t pos;
 
   /* look for arguments in user input*/
@@ -40,7 +41,7 @@ bool parse_input(std::string *line, input_structure *store_args) {
   /* transfered file */
   pos = line->find(file);
   if (pos != std::string::npos) {
-    get_file_name(line, &file_name, pos);
+    get_file_name(line, &file_name, &pos);
     add_file_name(store_args, &file_name);
   } else {
     return false;
@@ -51,7 +52,7 @@ bool parse_input(std::string *line, input_structure *store_args) {
 
   pos = line->find(timeout);
   if (pos != std::string::npos) {
-    int seconds = get_timeout(line, pos);
+    int seconds = get_timeout(line, &pos);
     if (seconds == -1) return false;
 
     add_timeout(store_args, seconds);
@@ -64,7 +65,7 @@ bool parse_input(std::string *line, input_structure *store_args) {
 
   pos = line->find(size);
   if (pos != std::string::npos) {
-    int size = get_size(line, pos);
+    int size = get_size(line, &pos);
     if (size == -1) return false;
 
     add_size(store_args, size);
@@ -72,19 +73,22 @@ bool parse_input(std::string *line, input_structure *store_args) {
 
   pos = line->find(data_mode);
   if (pos != std::string::npos) {
-    int mode = get_data_mode(line, pos);
+    int mode = get_data_mode(line, &pos);
     if (mode == -1) return false;
 
     add_data_mode(store_args, mode);
-  }  // test print
+  }
 
   pos = line->find(address);
   if (pos != std::string::npos) {
     std::string ip_address;
 
-    if (!get_ip_address(line, &ip_address, pos)) return false;
+    if (!get_ip_address(line, &ip_address, &pos)) return false;
 
     add_ip_address(store_args, ip_address);
+    if (!get_port_number(line, &port_n, &pos)) return false;
+
+    add_port_number(store_args, port_n);
   }
 
   std::cout << "\n\n------ LOG ------\n";
@@ -94,19 +98,21 @@ bool parse_input(std::string *line, input_structure *store_args) {
   std::cout << "multicast: " << store_args->multicast << "\n";
   std::cout << "data mode: " << store_args->data_mode << "\n";
   std::cout << "packet size: " << store_args->size << "\n";
-  std::cout << "ip address and port: " << store_args->ip_address 
+  std::cout << "ip address and port: " << store_args->ip_address << "\n";
+  std::cout << "ip address and port: " << store_args->port_number
             << "\n-----------------\n";
 
   return true;
 }
 
-bool get_file_name(std::string *line, std::string *file_name, std::size_t pos) {
+bool get_file_name(std::string *line, std::string *file_name,
+                   std::size_t *pos) {
   if (!get_arg(line, file_name, pos)) return false;
 
   return true;
 }
 
-int get_timeout(std::string *line, std::size_t pos) {
+int get_timeout(std::string *line, std::size_t *pos) {
   std::string timeout_str;
   if (!get_arg(line, &timeout_str, pos)) {
     return -1;
@@ -115,7 +121,7 @@ int get_timeout(std::string *line, std::size_t pos) {
   return stoi(timeout_str);
 }
 
-int get_size(std::string *line, std::size_t pos) {
+int get_size(std::string *line, std::size_t *pos) {
   std::string size_str;
   if (!get_arg(line, &size_str, pos)) {
     return -1;
@@ -124,7 +130,7 @@ int get_size(std::string *line, std::size_t pos) {
   return stoi(size_str);
 }
 
-int get_data_mode(std::string *line, std::size_t pos) {
+int get_data_mode(std::string *line, std::size_t *pos) {
   std::string mode_str;
   std::string ascii("ascii");
   std::string netascii("netascii");
@@ -147,28 +153,49 @@ int get_data_mode(std::string *line, std::size_t pos) {
 }
 
 bool get_ip_address(std::string *line, std::string *ip_address,
-                    std::size_t pos) {
+                    std::size_t *pos) {
   if (!get_arg(line, ip_address, pos)) {
+    fprintf(stderr, "Error: missing ip address\n");
     return false;
   }
 
   return true;
 }
 
-bool get_arg(std::string *line, std::string *arg, std::size_t pos) {
+bool get_port_number(std::string *line, std::size_t *port_n, std::size_t *pos) {
+  std::string temp;
+  *pos = line->find(",");
+
+  if (*pos != std::string::npos) {
+    *pos = *pos - 2;
+    if (!get_arg(line, &temp, pos)) {
+      fprintf(stderr, "Error: missing port number\n");
+      return false;
+    }
+  } else {
+    fprintf(stderr, "Error: missing port number\n");
+    return false;
+  }
+
+  *port_n = stoi(temp);
+
+  return true;
+}
+
+bool get_arg(std::string *line, std::string *arg, std::size_t *pos) {
   /* initialize variables */
   char buffer[100];
   std::string space(" ");
   /* stard reading file name 3 chars after flag */
-  std::size_t arg_pos = pos + 3;
+  std::size_t arg_pos = *pos + 3;
   std::size_t arg_end;
 
   /* clear out string in case of multiple calls */
   arg->erase();
 
-  for(std::size_t i = arg_pos; i < line->length(); i++) {
-    if(line->at(i) != '\40')
-      break;
+  /* iterate until next argument in line is reached */
+  for (std::size_t i = arg_pos; i < line->length(); i++) {
+    if (line->at(i) != '\40') break;
 
     arg_pos++;
   }
@@ -197,6 +224,9 @@ bool get_arg(std::string *line, std::string *arg, std::size_t pos) {
   }
 
   std::cout << "arg is: \"" << arg->data() << "\"\n";
+
+  *pos = arg_pos;
+  fprintf(stderr, "pos at end of get_arg is: %zu\n", *pos);
 
   return true;
 }

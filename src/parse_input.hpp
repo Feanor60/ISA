@@ -36,7 +36,7 @@ bool parse_input(std::string *line, input_structure *store_args);
  * @brief: extract file name from user input
  * @retval: true on succes or false on invalid arg
  */
-bool get_file_name(std::string *line, std::string *file_name, std::size_t pos);
+bool get_file_name(std::string *line, std::string *file_name, std::size_t *pos);
 
 /**
  *  @name: get_timeout
@@ -46,7 +46,7 @@ bool get_file_name(std::string *line, std::string *file_name, std::size_t pos);
  *          it into integer
  *  @retval: numerical value of timeout
  */
-int get_timeout(std::string *line, std::size_t pos);
+int get_timeout(std::string *line, std::size_t *pos);
 
 /**
  *  @name: get_size
@@ -56,7 +56,7 @@ int get_timeout(std::string *line, std::size_t pos);
  *          it into integer
  *  @retval: numerical value of size
  */
-int get_size(std::string *line, std::size_t pos);
+int get_size(std::string *line, std::size_t *pos);
 
 /**
  *  name: get_data_mode
@@ -71,7 +71,7 @@ int get_size(std::string *line, std::size_t pos);
  *           3 = binary
  *           4 = octet
  */
-int get_data_mode(std::string *line, std::size_t pos);
+int get_data_mode(std::string *line, std::size_t *pos);
 
 /**
  *  @name: get_ip_address
@@ -81,7 +81,17 @@ int get_data_mode(std::string *line, std::size_t pos);
  *  @brief: read ip address from line from pos
  *  @retval: return true on success and false on error
  */
-bool get_ip_address(std::string *line, std::string *ip_address, std::size_t pos);
+bool get_ip_address(std::string *line, std::string *ip_address, std::size_t *pos);
+
+/**
+ *  @name: get_port_number
+ *  @param line: string to extract port number from
+ *  @param port_n: string to store port number in
+ *  @param pos: first char of ip address in line
+ *  @brief: portn number from line from pos
+ *  @retval: return true on success and false on error
+ */
+bool get_port_number(std::string *line, std::size_t *port_n, std::size_t *pos);
 
 /**
  *  @name: get_arg
@@ -91,7 +101,7 @@ bool get_ip_address(std::string *line, std::string *ip_address, std::size_t pos)
  *  @brief: read chars from pos in line until next space char or end of string
  *  @retval: return true on succes or false on no arg
  */
-bool get_arg(std::string *line, std::string *arg, std::size_t pos);
+bool get_arg(std::string *line, std::string *arg, std::size_t *pos);
 
 /*
  * @name: test_input

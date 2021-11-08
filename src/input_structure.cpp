@@ -38,3 +38,7 @@ void add_data_mode(input_structure *store_args, int data_mode) {
 void add_ip_address(input_structure *store_args, std::string ip_address) {
   store_args->ip_address = ip_address;
 }
+
+void add_port_number(input_structure *store_args, std::size_t port_n) {
+  store_args->port_number = port_n;
+}
