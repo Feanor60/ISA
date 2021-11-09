@@ -23,6 +23,8 @@ void init_struct(input_structure *store_args) {
   store_args->multicast = false;
   store_args->size = -1;
   store_args->data_mode = -1;
+  store_args->ip_address = "127.0.0.1";
+  store_args->port_number = 69;
 }
 
 int main(int argc, char **argv) {

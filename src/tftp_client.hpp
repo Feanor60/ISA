@@ -32,12 +32,21 @@
 bool start_tftp_clinet(input_structure *store_args);
 
 /**
+ * @name: fill_sockaddr_in
+ * @param store_args: structure with ip address and port
+ * @param server: structure which we will be filled out
+ * @brief: fill out a socket with information from user input
+ * @retval: true on succes false on failure
+ */
+bool fill_sockaddr_in(input_structure *store_args, struct sockaddr_in *server);
+
+/**
  *  @name: request_read
  *  @brief: send read request to server
  *  @retval: returns true on server akcnowledging read request
  *           returns false on timeout #TODO edit as needed
  */
-bool request_read(input_structure *store_args, char err_buff[]);
+bool request_read(input_structure *store_args, struct sockaddr_in *server);
 
 /**
  *  @name: request_write
@@ -45,6 +54,6 @@ bool request_read(input_structure *store_args, char err_buff[]);
  *  @revatl: returns true on server akcnowledging write request
  *           returns false on timeout #TODO edit as needed
  */
-bool request_write(input_structure *store_args, char err_buff[]);
+bool request_write(input_structure *store_args, struct sockaddr_in *server);
 
 #endif
