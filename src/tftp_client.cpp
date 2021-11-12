@@ -9,25 +9,149 @@
 
 bool start_tftp_clinet(input_structure *store_args) {
   struct sockaddr_in server;
-  
-  if(!fill_sockaddr_in(store_args, &server)) return false;
+  struct timeval timeout;
+  /* socket desriptor */
+  int sock;
+  /* fixed size buffer, blocksize option not implemented yet
+   * #TODO revise this */
+  char buffer[600];
+  char *p;
+  int count;
+  std::size_t pos;
+  std::size_t result;
+  time_t t;
+  unsigned int server_len;
+  FILE *fp;
+  bool RRQ;
 
   if(store_args->app_mode == 1) {
-    if(!request_read(store_args, &server)) {
-      return false;
-    }
+    RRQ = true;
   } else {
-    if(!request_write(store_args, &server)) {
-      return false;
-    }
+    RRQ = false;
   }
+
+  /* set up socket */
+  pos = store_args->ip_address.find(":");
+  if(pos != std::string::npos) {
+    sock = socket(AF_INET6, SOCK_DGRAM, 0);
+  } else {
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+  }
+
+  time(&t);
+
+  timeout.tv_sec = 3;
+  timeout.tv_usec = 0;
+
+  /* add timeout to the socket */
+  if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) <
+      0) {
+    fprintf(stderr, "Error: failed to set timeout\n");
+  }
+
+  /* create or open file that is transfered */
+  fp = fopen(store_args->file_name.data(), "w");
+  
+  if (!fill_sockaddr_in(store_args, &server)) return false;
+
+  p = build_tftp_request_header(store_args, buffer);
+
+
+  if (RRQ) {
+    fprintf(stdout, "[%.24s] Requesting READ from server %s:%zu\n", ctime(&t),
+            store_args->ip_address.data(), store_args->port_number);
+  } else {
+    fprintf(stdout, "[%.24s] Requesting WRITE from server %s:%zu\n", ctime(&t),
+            store_args->ip_address.data(), store_args->port_number);
+  }
+
+  /* send read request to tftp server */
+  count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
+                 sizeof(server));
+
+  /* collect data into file until short packet arrives (signaling end of transfer)
+   * or either terminating error packet is recieved or error occurs*/
+  do {
+    server_len = sizeof(server);
+
+    /* actively wait for response form server #TODO implement timeout */
+    count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server, &server_len);
+
+    /* handle timeout */
+    if (errno == EWOULDBLOCK) {
+      fprintf(stderr, "[%.24s] Error: timed out, trying again ...\n", ctime(&t)); 
+      count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
+                 sizeof(server));
+
+      server_len = sizeof(server);
+
+      count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server, &server_len);
+
+      /* if it times out again print error and abort transfer */
+      if(errno == EWOULDBLOCK) {
+       fprintf(stderr, "[%.24s] Error: timed out\n", ctime(&t));
+       fprintf(stderr, "[%.24s] Aborting transfer\n", ctime(&t));
+       remove_file(store_args->file_name.data(), fp);
+       return false;
+      }
+
+     }
+
+    /* handle error packet */
+    if (ntohs(*(short *)buffer) == OP_ERR) {
+      if (!handle_error(buffer)) {
+        fprintf(stderr, "Aborting tranfser\n");
+        remove_file(store_args->file_name.data(), fp);
+        return false;
+      }
+    } else {
+      /* handle reading from server */
+      if(RRQ) {
+        fprintf(stdout, "[%.24s] Recieving data from server %s:%lu\n", ctime(&t),
+              store_args->ip_address.data(),(unsigned long) ntohs(server.sin_port));
+        /* if data are in netascii format convert them */
+        convert_from_netascii(buffer, count);
+        /* write recieved data into file */
+        result = fwrite(buffer + 4, sizeof(char), count - 4, fp);
+
+        if (result != (unsigned long int) (count - 4)) {
+          fprintf(stderr, "[%.24s]Error while writing into file\n", ctime(&t));
+          remove_file(store_args->file_name.data(), fp);
+          return false;
+        }
+
+        /* take the recieved buffer and replace OP code with OP_ACK
+        * because it already contains packet nubmer that needs to be acked*/
+        *(short *)buffer = htons(OP_ACK);
+
+      } else {
+        /* handle writing to server */
+        fprintf(stdout, "[%.24s] Writing data to server %s:%lu\n", ctime(&t),
+              store_args->ip_address.data(),(unsigned long) ntohs(server.sin_port));
+      
+        *(short *)buffer = htons(OP_DATA);
+
+        result = fread(buffer + 4, sizeof(char), 512, fp);
+        if(ferror(fp) != 0) {
+          fprintf(stderr, "[%.24s] Error in reading from file\n", ctime(&t));
+        }
+
+      }
+
+     
+      /* send ack or data packet */
+      sendto(sock, buffer, 4, 0, (struct sockaddr *)&server, sizeof(server));
+    }
+  } while ((count == 516 && RRQ) || (!RRQ && result != 512));
+
+  fprintf(stdout, "Transfer completed without error\n");
+  fclose(fp);
 
   return true;
 }
 
 bool fill_sockaddr_in(input_structure *store_args, struct sockaddr_in *server) {
-  struct hostent *host;       // host info
-
+  struct hostent *host;  // host info
 
   host = gethostbyname(store_args->ip_address.data());
   if (host == NULL) {
@@ -42,21 +166,16 @@ bool fill_sockaddr_in(input_structure *store_args, struct sockaddr_in *server) {
   return true;
 }
 
-bool request_read(input_structure *store_args, struct sockaddr_in *server) {
-  /* socket desriptor */
-  int sock;
-  /* fixed size buffer, blocksize option not implemented yet #TODO revise this */
-  char buffer[600];
+char *build_tftp_request_header(input_structure *store_args, char *buffer) {
   char *p;
-  int count;
-  unsigned int server_len;
-
-  /* ipv4  */
-  sock = socket(AF_INET, SOCK_DGRAM, 0);
-
   /* build tftp header  */
   /* The op-code   */
-  *(short *)buffer = htons(OP_READ); 
+  if(store_args->app_mode == 1 ) {
+    *(short *)buffer = htons(OP_READ);
+  } else {
+   *(short *)buffer = htons(OP_WRITE);
+  }
+
   /* OP code takes 2 bytes in buffer */
   p = buffer + 2;
   /* copy file name to buffer */
@@ -64,38 +183,53 @@ bool request_read(input_structure *store_args, struct sockaddr_in *server) {
   /* one byte left empty */
   p += strlen(store_args->file_name.data()) + 1;
   /* copy mode */
-  strcpy(p, "octet");
-  /* last byte left empty */
-  p += strlen("octet") + 1;
+  if (store_args->data_mode == 1) {
+    strcpy(p, "netascii");
+    p += strlen("netascii") + 1;
+  } else {
+    strcpy(p, "octet");
+    p += strlen("octet") + 1;
+  }
 
-  /* send read request to tftp server */
-  count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
-                 sizeof *server);
+  return p;
+}
 
-  /* Loop, collecting data packets from the server, until a short
-     packet arrives. This indicates the end of the file.
-  */
-  do {
-    server_len = sizeof(*server);
-    count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server, &server_len);
-    if (ntohs(*(short *)buffer) == OP_ERR) {
-      fprintf(stderr, "rcat: %s\n", buffer + 4);
-    } else {
-      write(1, buffer + 4, count - 4);
-      /* Send an ack packet. The block number we want to ack is
-         already in the buffer so we just need to change the
-         opcode. Note that the ACK is sent to the port number
-         which the server just sent the data from, NOT to port
-         69
-      */
-      *(short *)buffer = htons(OP_ACK);
-      sendto(sock, buffer, 4, 0, (struct sockaddr *)&server, sizeof(*server));
-    }
-  } while (count == 516);
+bool handle_error(char *buffer) {
+  uint32_t err_code;
+  /* get the error code */
+  char *p = buffer;
+  p = p + 2;
+  err_code = ntohs(*(short *)p);
+
+  fprintf(stderr, "Error: %s\n", buffer + 4);
+
+  if (err_code == 0 || err_code == 1 || err_code == 2 || err_code == 3 ||
+      err_code == 4) {
+    return false;
+  } else if (err_code == 5) {
+    return true;
+  } else {
+    fprintf(stderr, "Error: recived error message with unknown error number: %d\n", err_code);
+    return false;
+  }
 
   return true;
 }
 
-bool request_write(input_structure *store_args, struct sockaddr_in *server) {
-  return true;
+void convert_from_netascii(char *buffer, int count) {
+  char *p;
+
+  /* dont convert tftp header */
+  p = buffer + 4;
+
+  for(int i = 0; i < count - 4; i++) {
+    if(*p == 10) {
+      printf("here\n"); 
+    }
+  }
+}
+
+void remove_file(const char *file_name, FILE *fp) {
+  fclose(fp);
+  remove(file_name);
 }

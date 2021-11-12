@@ -13,10 +13,15 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
+#include <errno.h>
 
 #include "input_structure.hpp"
 
+/* default port for tftp server */
 #define PORT      69
+
+/* tftp header OP codes */
 #define OP_READ   1
 #define OP_WRITE  2
 #define OP_DATA   3
@@ -46,7 +51,7 @@ bool fill_sockaddr_in(input_structure *store_args, struct sockaddr_in *server);
  *  @retval: returns true on server akcnowledging read request
  *           returns false on timeout #TODO edit as needed
  */
-bool request_read(input_structure *store_args, struct sockaddr_in *server);
+bool request_read(input_structure *store_args);
 
 /**
  *  @name: request_write
@@ -54,6 +59,38 @@ bool request_read(input_structure *store_args, struct sockaddr_in *server);
  *  @revatl: returns true on server akcnowledging write request
  *           returns false on timeout #TODO edit as needed
  */
-bool request_write(input_structure *store_args, struct sockaddr_in *server);
+bool request_write(input_structure *store_args);
 
+/**
+ * @name: build_request_read_header
+ * @param buffer: pointer to buffer with tftp header and data
+ * @param p: pointer to char in buffer
+ * @retval: pointer that points at end of tftp header in buffer 
+ */
+char *build_tftp_request_header(input_structure *store_args, char *buffer);
+
+/**
+ * @name: handle_error
+ * @param buffer: char array with error op code, and description of error
+ * @brief: parse buffer, print error message and decide if transfer needs to
+ *         be terminated
+ * @retval: true if transfer should continue, false if it should be terminated
+ */
+bool handle_error(char *buffer);
+
+/**
+ * @name: convert_from_netascii
+ * @param buffer: char array that needs to be converted
+ * @param count: lenght of buffer
+ * @brief: convert from netascii to normal
+ */
+void convert_from_netascii(char *buffer, int count);
+
+/**
+ * @name: remove_file
+ * @param file_name: name of file to be removed
+ * @param fp: file descriptor of read file
+ * @brief: if reading fails close file descriptor and delete file
+ */
+void remove_file(const char* file_name, FILE *fp);
 #endif

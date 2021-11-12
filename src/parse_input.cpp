@@ -91,7 +91,7 @@ bool parse_input(std::string *line, input_structure *store_args) {
     add_port_number(store_args, port_n);
   }
 
-  std::cout << "\n\n------ LOG ------\n";
+  std::cout << "\n------ LOG ------\n";
   std::cout << "app mode: " << store_args->app_mode << "\n";
   std::cout << "file: " << store_args->file_name << "\n";
   std::cout << "timeout: " << store_args->timeout << "\n";
@@ -132,22 +132,16 @@ int get_size(std::string *line, std::size_t *pos) {
 
 int get_data_mode(std::string *line, std::size_t *pos) {
   std::string mode_str;
-  std::string ascii("ascii");
   std::string netascii("netascii");
-  std::string binary("binary");
   std::string octet("octet");
 
   if (!get_arg(line, &mode_str, pos)) {
     return -1;
   }
 
-  if (!strcmp(mode_str.data(), "ascii")) return 1;
+  if (!strcmp(mode_str.data(), "netascii")) return 1;
 
-  if (!strcmp(mode_str.data(), "netascii")) return 2;
-
-  if (!strcmp(mode_str.data(), "binary")) return 3;
-
-  if (!strcmp(mode_str.data(), "octet")) return 4;
+  if (!strcmp(mode_str.data(), "octet")) return 2;
 
   return -1;
 }
@@ -223,10 +217,7 @@ bool get_arg(std::string *line, std::string *arg, std::size_t *pos) {
     buffer[i] = 0;
   }
 
-  std::cout << "arg is: \"" << arg->data() << "\"\n";
-
   *pos = arg_pos;
-  fprintf(stderr, "pos at end of get_arg is: %zu\n", *pos);
 
   return true;
 }

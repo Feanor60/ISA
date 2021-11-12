@@ -22,7 +22,7 @@
  *           client suggests this value, server does not have to accept
  * @size: maximum size of blocks in octets, this value is sugested by client
  * @multicast: client asks for mulcticast transfer
- * @data_mode: data encoding in packets - ascii, netascii, binary, octet
+ * @data_mode: data encoding in packets - netasci, octet
  * @ip_addres: address of the server, in ipv4 or ipv6
  * @port_number: port where server is listening
  */

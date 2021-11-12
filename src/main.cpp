@@ -22,9 +22,12 @@ void init_struct(input_structure *store_args) {
   store_args->timeout = -1;
   store_args->multicast = false;
   store_args->size = -1;
-  store_args->data_mode = -1;
+  /* octet is set as default */
+  store_args->data_mode = 2;
+  /* local host set as default */
   store_args->ip_address = "127.0.0.1";
-  store_args->port_number = 69;
+  /* port 69 set as default */
+  store_args->port_number = PORT;
 }
 
 int main(int argc, char **argv) {
