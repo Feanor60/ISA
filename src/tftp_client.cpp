@@ -87,29 +87,29 @@ bool start_tftp_clinet(input_structure *store_args) {
   }
 
   /* send read request to tftp server */
-  if(ipv6) {
+  if (ipv6) {
     count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server6,
-                 sizeof(server6));
+                   sizeof(server6));
   } else {
     count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
-                 sizeof(server));
+                   sizeof(server));
   }
 
   /* collect data into file until short packet arrives (signaling end of
    * transfer) or either terminating error packet is recieved or error occurs*/
   do {
-    if(ipv6)
+    if (ipv6)
       server_len = sizeof(server6);
     else
       server_len = sizeof(server);
 
-    if(ipv6) {
-      count =
-        recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server6, &server_len);
+    if (ipv6) {
+      count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server6,
+                       &server_len);
     } else {
-    /* actively wait for response form server #TODO implement timeout */
-      count =
-        recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server, &server_len);
+      /* actively wait for response form server #TODO implement timeout */
+      count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server,
+                       &server_len);
     }
 
     if (ntohs(*(short *)buffer) == OP_ACK) {
@@ -123,14 +123,25 @@ bool start_tftp_clinet(input_structure *store_args) {
     if (errno == EWOULDBLOCK) {
       fprintf(stderr, "[%.24s] Error: timed out, trying again ...\n",
               ctime(&t));
-      count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
-                     sizeof(server));
+      if (ipv6) {
+        count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server6,
+                       sizeof(server6));
+      } else {
+        count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
+                       sizeof(server));
+      }
 
       server_len = sizeof(server);
 
       errno = 0;
-      count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server,
-                       &server_len);
+      if (ipv6) {
+        count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server6,
+                         &server_len);
+      } else {
+        /* actively wait for response form server #TODO implement timeout */
+        count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server,
+                         &server_len);
+      }
 
       /* if it times out again print error and abort transfer */
       if (errno == EWOULDBLOCK) {
@@ -172,7 +183,13 @@ bool start_tftp_clinet(input_structure *store_args) {
          * because it already contains packet nubmer that needs to be acked*/
         *(short *)buffer = htons(OP_ACK);
 
-        sendto(sock, buffer, 4, 0, (struct sockaddr *)&server, sizeof(server));
+        if (ipv6) {
+          count = sendto(sock, buffer, 4, 0,
+                         (struct sockaddr *)&server6, sizeof(server6));
+        } else {
+          count = sendto(sock, buffer, 4, 0,
+                         (struct sockaddr *)&server, sizeof(server));
+        }
 
       } else {
         /* handle writing to server */
@@ -207,8 +224,13 @@ bool start_tftp_clinet(input_structure *store_args) {
 
         } while (counter != 512);
 
-        sendto(sock, buffer, counter + 4, 0, (struct sockaddr *)&server,
-               sizeof(server));
+        if (ipv6) {
+          count = sendto(sock, buffer, counter + 4, 0,
+                         (struct sockaddr *)&server6, sizeof(server6));
+        } else {
+          count = sendto(sock, buffer, counter + 4, 0,
+                         (struct sockaddr *)&server, sizeof(server));
+        }
       }
     }
   } while ((count == 516 && RRQ) || (!RRQ && result != 512));
