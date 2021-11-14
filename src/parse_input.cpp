@@ -152,7 +152,11 @@ bool get_ip_address(std::string *line, std::string *ip_address,
     fprintf(stderr, "Error: missing ip address\n");
     return false;
   }
+  
 
+  std::string mystr = ip_address->substr(0, ip_address->find(",", 0));
+  
+  *ip_address = mystr;
   return true;
 }
 

@@ -92,5 +92,5 @@ void convert_from_netascii(char *buffer, int count);
  * @param fp: file descriptor of read file
  * @brief: if reading fails close file descriptor and delete file
  */
-void remove_file(const char* file_name, FILE *fp);
+void remove_file(const char* file_name, FILE *fp, bool RRQ);
 #endif
