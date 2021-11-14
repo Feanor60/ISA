@@ -89,7 +89,7 @@ bool start_tftp_clinet(input_structure *store_args) {
   /* send read request to tftp server */
   if(ipv6) {
     count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server6,
-                 sizeof(server));
+                 sizeof(server6));
   } else {
     count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
                  sizeof(server));
