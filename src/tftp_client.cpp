@@ -87,8 +87,13 @@ bool start_tftp_clinet(input_structure *store_args) {
   }
 
   /* send read request to tftp server */
-  count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
+  if(ipv6) {
+    count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server6,
                  sizeof(server));
+  } else {
+    count = sendto(sock, buffer, p - buffer, 0, (struct sockaddr *)&server,
+                 sizeof(server));
+  }
 
   /* collect data into file until short packet arrives (signaling end of
    * transfer) or either terminating error packet is recieved or error occurs*/
