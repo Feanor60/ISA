@@ -10,6 +10,7 @@
 bool start_tftp_clinet(input_structure *store_args) {
   FILE *fp;
   bool RRQ;
+  bool ipv6;
   char *p;
   /* fixed size buffer, blocksize option not implemented yet */
   char buffer[600];
@@ -35,9 +36,11 @@ bool start_tftp_clinet(input_structure *store_args) {
   /* set up socket */
   pos = store_args->ip_address.find(":");
   if (pos != std::string::npos) {
+    ipv6 = true;
     sock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (!fill_sockaddr_in6(store_args, &server6)) return false;
   } else {
+    ipv6 = false;
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (!fill_sockaddr_in(store_args, &server)) return false;
   }
@@ -90,7 +93,10 @@ bool start_tftp_clinet(input_structure *store_args) {
   /* collect data into file until short packet arrives (signaling end of
    * transfer) or either terminating error packet is recieved or error occurs*/
   do {
-    server_len = sizeof(server);
+    if(ipv6)
+      server_len = sizeof(server6);
+    else
+      server_len = sizeof(server);
 
     /* actively wait for response form server #TODO implement timeout */
     count =
