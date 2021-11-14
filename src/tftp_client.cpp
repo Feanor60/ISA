@@ -8,23 +8,22 @@
 #include "tftp_client.hpp"
 
 bool start_tftp_clinet(input_structure *store_args) {
-  struct sockaddr_in server;
-  struct timeval timeout;
-  /* socket desriptor */
-  int sock;
-  /* fixed size buffer, blocksize option not implemented yet
-   * #TODO revise this */
-  char buffer[600];
-  char *p;
-  int count;
-  int write_count;
-  std::size_t pos;
-  // std::size_t buffer_count;
-  std::size_t result;
-  time_t t;
-  unsigned int server_len;
   FILE *fp;
   bool RRQ;
+  char *p;
+  /* fixed size buffer, blocksize option not implemented yet */
+  char buffer[600];
+  int count;
+  /* socket desriptor */
+  int sock;
+  int write_count;
+  std::size_t pos;
+  std::size_t result;
+  struct sockaddr_in server;
+  struct sockaddr_in6 server6;
+  struct timeval timeout;
+  time_t t;
+  unsigned int server_len;
 
   if (store_args->app_mode == 1) {
     RRQ = true;
@@ -37,8 +36,10 @@ bool start_tftp_clinet(input_structure *store_args) {
   pos = store_args->ip_address.find(":");
   if (pos != std::string::npos) {
     sock = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (!fill_sockaddr_in6(store_args, &server6)) return false;
   } else {
     sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (!fill_sockaddr_in(store_args, &server)) return false;
   }
 
   time(&t);
@@ -49,7 +50,7 @@ bool start_tftp_clinet(input_structure *store_args) {
   /* add timeout to the socket */
   if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) <
       0) {
-    fprintf(stderr, "Error: failed to set timeout\n");
+    fprintf(stderr, "[%.24s] Error: failed to set timeout\n", ctime(&t));
   }
 
   /* create or open file that is transfered */
@@ -61,21 +62,22 @@ bool start_tftp_clinet(input_structure *store_args) {
   }
 
   if (fp == NULL) {
-    fprintf(
-        stderr,
-        "Error: could not open file for reading or writting, errno is: %d\n",
-        errno);
+    time(&t);
+    fprintf(stderr,
+            "[%.24s] Error: could not open file for reading or writting, errno "
+            "is: %d\n",
+            ctime(&t), errno);
     return false;
   }
-
-  if (!fill_sockaddr_in(store_args, &server)) return false;
 
   p = build_tftp_request_header(store_args, buffer);
 
   if (RRQ) {
+    time(&t);
     fprintf(stdout, "[%.24s] Requesting READ from server %s:%zu\n", ctime(&t),
             store_args->ip_address.data(), store_args->port_number);
   } else {
+    time(&t);
     write_count = 1;
     fprintf(stdout, "[%.24s] Requesting WRITE from server %s:%zu\n", ctime(&t),
             store_args->ip_address.data(), store_args->port_number);
@@ -95,11 +97,10 @@ bool start_tftp_clinet(input_structure *store_args) {
         recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server, &server_len);
 
     if (ntohs(*(short *)buffer) == OP_ACK) {
-      fprintf(
-          stdout,
-          "[%.24s] Recieved ack packet from server %s:%lu\n",
-          ctime(&t), store_args->ip_address.data(),
-          (unsigned long)ntohs(server.sin_port));
+      time(&t);
+      fprintf(stdout, "[%.24s] Recieved ack packet from server %s:%lu\n",
+              ctime(&t), store_args->ip_address.data(),
+              (unsigned long)ntohs(server.sin_port));
     }
 
     /* handle timeout */
@@ -114,9 +115,10 @@ bool start_tftp_clinet(input_structure *store_args) {
       errno = 0;
       count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server,
                        &server_len);
-      
+
       /* if it times out again print error and abort transfer */
       if (errno == EWOULDBLOCK) {
+        time(&t);
         fprintf(stderr, "[%.24s] Error: timed out\n", ctime(&t));
         fprintf(stderr, "[%.24s] Aborting transfer\n", ctime(&t));
         remove_file(store_args->file_name.data(), fp, RRQ);
@@ -134,16 +136,17 @@ bool start_tftp_clinet(input_structure *store_args) {
     } else {
       /* handle reading from server */
       if (RRQ) {
+        time(&t);
         fprintf(stdout, "[%.24s] Recieving data from server %s:%lu\n",
                 ctime(&t), store_args->ip_address.data(),
                 (unsigned long)ntohs(server.sin_port));
         /* if data are in netascii format convert them */
-        if(store_args->data_mode == 1)
-         convert_from_netascii(buffer, count);
+        if (store_args->data_mode == 1) convert_from_netascii(buffer, count);
         /* write recieved data into file */
         result = fwrite(buffer + 4, sizeof(char), count - 4, fp);
 
         if (result != (unsigned long int)(count - 4)) {
+          time(&t);
           fprintf(stderr, "[%.24s]Error while writing into file\n", ctime(&t));
           remove_file(store_args->file_name.data(), fp, RRQ);
           return false;
@@ -157,6 +160,7 @@ bool start_tftp_clinet(input_structure *store_args) {
 
       } else {
         /* handle writing to server */
+        time(&t);
         fprintf(stdout, "[%.24s] Writing data to server %s:%lu\n", ctime(&t),
                 store_args->ip_address.data(),
                 (unsigned long)ntohs(server.sin_port));
@@ -176,6 +180,11 @@ bool start_tftp_clinet(input_structure *store_args) {
             break;
           }
 
+          /* if mode is netascii */
+          if (store_args->data_mode == 1) {
+            printf("here\n");
+          }
+
           buffer[counter + 4] = c;
 
           counter++;
@@ -185,11 +194,11 @@ bool start_tftp_clinet(input_structure *store_args) {
         sendto(sock, buffer, counter + 4, 0, (struct sockaddr *)&server,
                sizeof(server));
       }
-
     }
   } while ((count == 516 && RRQ) || (!RRQ && result != 512));
 
-  fprintf(stdout, "Transfer completed without error\n");
+  time(&t);
+  fprintf(stdout, "[%.24s] Transfer completed without error\n", ctime(&t));
   fclose(fp);
 
   return true;
@@ -207,6 +216,26 @@ bool fill_sockaddr_in(input_structure *store_args, struct sockaddr_in *server) {
   server->sin_family = AF_INET;
   memcpy(&server->sin_addr.s_addr, host->h_addr, host->h_length);
   server->sin_port = htons(store_args->port_number);
+
+  return true;
+}
+
+bool fill_sockaddr_in6(input_structure *store_args,
+                       struct sockaddr_in6 *server) {
+  struct hostent *host;  // host info
+
+  host = gethostbyname2(store_args->ip_address.data(), AF_INET6);
+  if (host == NULL) {
+    fprintf(stderr, "Error: uknown address\n");
+    return false;
+  }
+
+  server->sin6_family = AF_INET6;
+
+  memcpy(&server->sin6_addr, host->h_addr, host->h_length);
+  server->sin6_port = htons(store_args->port_number);
+
+  return true;
 
   return true;
 }
