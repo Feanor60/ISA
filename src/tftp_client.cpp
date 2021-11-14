@@ -236,8 +236,6 @@ bool fill_sockaddr_in6(input_structure *store_args,
   server->sin6_port = htons(store_args->port_number);
 
   return true;
-
-  return true;
 }
 
 char *build_tftp_request_header(input_structure *store_args, char *buffer) {
