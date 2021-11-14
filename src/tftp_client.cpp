@@ -98,9 +98,14 @@ bool start_tftp_clinet(input_structure *store_args) {
     else
       server_len = sizeof(server);
 
+    if(ipv6) {
+      count =
+        recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server6, &server_len);
+    } else {
     /* actively wait for response form server #TODO implement timeout */
-    count =
+      count =
         recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server, &server_len);
+    }
 
     if (ntohs(*(short *)buffer) == OP_ACK) {
       time(&t);
