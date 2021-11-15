@@ -1,5 +1,5 @@
 /**
- * @file: main.cpp #TODO keep this? or rename
+ * @file: main.cpp
  * @author: Vojtěch Bůbela
  * @login: xbubel08
  * @brief: mytftpclient is implementation of client side of tftp protocol
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     std::getline(std::cin, line);
 
     if (!strcmp(line.data(), "help")) {
-			std::cout << "print help\n";
+			std::cout << "usage: -R/-W -d [file name] -a [ipv4/ipv6 address],[port number] -c [netascii/octet]\n";
     	continue;
 		}
 

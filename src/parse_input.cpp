@@ -91,6 +91,7 @@ bool parse_input(std::string *line, input_structure *store_args) {
     add_port_number(store_args, port_n);
   }
 
+  
   std::cout << "\n------ LOG ------\n";
   std::cout << "app mode: " << store_args->app_mode << "\n";
   std::cout << "file: " << store_args->file_name << "\n";

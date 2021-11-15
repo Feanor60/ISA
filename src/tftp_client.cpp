@@ -18,6 +18,7 @@ bool start_tftp_clinet(input_structure *store_args) {
   /* socket desriptor */
   int sock;
   int write_count;
+  int recieved_data;
   std::size_t pos;
   std::size_t result;
   struct sockaddr_in server;
@@ -26,8 +27,27 @@ bool start_tftp_clinet(input_structure *store_args) {
   time_t t;
   unsigned int server_len;
 
+  /* check if unsupported options had been set */
+  if(store_args->size != -1) {
+    fprintf(stderr, "Error: option -s is not supported\n");
+    return false;
+  }
+
+  if(store_args->timeout != -1) {
+    fprintf(stderr, "Error: option -t is not supported\n");
+    return false;
+  }
+  
+  if(store_args->multicast) {
+    fprintf(stderr, "Error: option -m is not supported\n");
+    return false;
+  }
+
+  /* do some initial setup */
+  /* --------------------------------------------- */
   if (store_args->app_mode == 1) {
     RRQ = true;
+    recieved_data = 0;
   } else {
     RRQ = false;
   }
@@ -72,9 +92,14 @@ bool start_tftp_clinet(input_structure *store_args) {
             ctime(&t), errno);
     return false;
   }
+  /* --------------------------------------------- */
 
+
+  /* build tftp header for the first time */
   p = build_tftp_request_header(store_args, buffer);
 
+
+  /* print update data */
   if (RRQ) {
     time(&t);
     fprintf(stdout, "[%.24s] Requesting READ from server %s:%zu\n", ctime(&t),
@@ -103,15 +128,16 @@ bool start_tftp_clinet(input_structure *store_args) {
     else
       server_len = sizeof(server);
 
+    /* actively wait for response form server */
     if (ipv6) {
       count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server6,
                        &server_len);
     } else {
-      /* actively wait for response form server #TODO implement timeout */
       count = recvfrom(sock, buffer, 600, 0, (struct sockaddr *)&server,
                        &server_len);
     }
 
+    /* print update if packet with ACK was recieved */
     if (ntohs(*(short *)buffer) == OP_ACK) {
       time(&t);
       fprintf(stdout, "[%.24s] Recieved ack packet from server %s:%lu\n",
@@ -119,7 +145,8 @@ bool start_tftp_clinet(input_structure *store_args) {
               (unsigned long)ntohs(server.sin_port));
     }
 
-    /* handle timeout */
+    /* timeout is set to 3 seconds, after timeout happens, packet is resent once
+     * if it happens again, transfer is reminated */
     if (errno == EWOULDBLOCK) {
       fprintf(stderr, "[%.24s] Error: timed out, trying again ...\n",
               ctime(&t));
@@ -153,7 +180,7 @@ bool start_tftp_clinet(input_structure *store_args) {
       }
     }
 
-    /* handle error packet */
+    /* if error packet is recieved, parse its error code, if its 1 - 4, terminate transfer */
     if (ntohs(*(short *)buffer) == OP_ERR) {
       if (!handle_error(buffer)) {
         fprintf(stderr, "Aborting transfer\n");
@@ -161,14 +188,14 @@ bool start_tftp_clinet(input_structure *store_args) {
         return false;
       }
     } else {
+      recieved_data = count;
       /* handle reading from server */
       if (RRQ) {
         time(&t);
         fprintf(stdout, "[%.24s] Recieving data from server %s:%lu\n",
                 ctime(&t), store_args->ip_address.data(),
                 (unsigned long)ntohs(server.sin_port));
-        /* if data are in netascii format convert them */
-        if (store_args->data_mode == 1) convert_from_netascii(buffer, count);
+
         /* write recieved data into file */
         result = fwrite(buffer + 4, sizeof(char), count - 4, fp);
 
@@ -180,28 +207,33 @@ bool start_tftp_clinet(input_structure *store_args) {
         }
 
         /* take the recieved buffer and replace OP code with OP_ACK
-         * because it already contains packet nubmer that needs to be acked*/
+         * because it already contains block nubmer that needs to be acked*/
         *(short *)buffer = htons(OP_ACK);
 
         if (ipv6) {
-          count = sendto(sock, buffer, 4, 0,
-                         (struct sockaddr *)&server6, sizeof(server6));
+          count = sendto(sock, buffer, 4, 0, (struct sockaddr *)&server6,
+                         sizeof(server6));
         } else {
-          count = sendto(sock, buffer, 4, 0,
-                         (struct sockaddr *)&server, sizeof(server));
+          count = sendto(sock, buffer, 4, 0, (struct sockaddr *)&server,
+                         sizeof(server));
         }
 
       } else {
         /* handle writing to server */
+
+        /* print update */
         time(&t);
         fprintf(stdout, "[%.24s] Writing data to server %s:%lu\n", ctime(&t),
                 store_args->ip_address.data(),
                 (unsigned long)ntohs(server.sin_port));
 
+        /* prepare DATA packet */
         *(short *)buffer = htons(OP_DATA);
         p = buffer + 2;
         *(short *)p = htons(write_count);
         write_count++;
+
+        /* write from file to buffer */
         char c;
         int counter = 0;
 
@@ -209,13 +241,25 @@ bool start_tftp_clinet(input_structure *store_args) {
           c = fgetc(fp);
 
           if (feof(fp)) {
-            RRQ = true;
+            result = counter;
             break;
           }
-
-          /* if mode is netascii */
-          if (store_args->data_mode == 1) {
-            printf("here\n");
+          
+          /* if netascii mode is set, convert read data */
+          if(store_args->data_mode == 1) {
+            if(c == '\n') {
+              buffer[counter + 4] = '\r';
+              counter ++;
+              if(counter == 512) {
+                break;
+              }
+            } else if( c == '\r') {
+              buffer[counter + 4] = '\0';
+              counter++;
+              if(counter == 512) {
+                break;
+              }
+            }
           }
 
           buffer[counter + 4] = c;
@@ -224,6 +268,10 @@ bool start_tftp_clinet(input_structure *store_args) {
 
         } while (counter != 512);
 
+        /* set number of bytes written */
+        result = counter;
+
+        /* sent written packet */
         if (ipv6) {
           count = sendto(sock, buffer, counter + 4, 0,
                          (struct sockaddr *)&server6, sizeof(server6));
@@ -233,11 +281,20 @@ bool start_tftp_clinet(input_structure *store_args) {
         }
       }
     }
-  } while ((count == 516 && RRQ) || (!RRQ && result != 512));
+    
+  } while ((recieved_data == 516 && RRQ) || (!RRQ && result == 512));
+
+  fclose(fp);
+
+  /* if reading netascii file, convert it to binary */
+  if(store_args->data_mode == 1 && RRQ) {
+    if(!convert_from_netascii(store_args)) {
+      fprintf(stderr, "Error while reading or writing from file, aborting transfer ...\n");
+    }
+  }
 
   time(&t);
   fprintf(stdout, "[%.24s] Transfer completed without error\n", ctime(&t));
-  fclose(fp);
 
   return true;
 }
@@ -328,17 +385,58 @@ bool handle_error(char *buffer) {
   return true;
 }
 
-void convert_from_netascii(char *buffer, int count) {
-  char *p;
+bool convert_from_netascii(input_structure *store_args) {
+  
+  FILE *fp_orig;
+  FILE *fp_new;
+  int result;
+  char c;
 
-  /* dont convert tftp header */
-  p = buffer + 4;
+  if((result = rename(store_args->file_name.data(), "temp")) != 0) {
+    return false;
+  } 
+  
+  fp_orig = fopen("temp", "r"); 
+  if(fp_orig == NULL) {
+    remove_file("temp", fp_orig, true);
+    return false;
+  }
 
-  for (int i = 0; i < count - 4; i++) {
-    if (*p == 10) {
-      printf("here\n");
+  fp_new = fopen(store_args->file_name.data(), "w");
+  if(fp_new == NULL) {
+    remove_file(store_args->file_name.data(), fp_new, false);
+    return false;
+  }
+
+  /* go through recieved buffer char by char and look for '\r''\n'
+   * and '\r''\0' and replace them with '\n' and '\r' respectively
+   * then write them into file, write everything else into file */
+ 
+  while((c = fgetc(fp_orig)) != EOF){
+
+    if (c == '\r') {
+      c = fgetc(fp_orig);
+
+      if(feof(fp_orig)) {
+          fputc(c, fp_new);
+          remove_file("temp", fp_orig, true);
+          return true;
+      }
+
+      if (c == '\n') {
+        fputc('\n', fp_new);
+      } else if (c == '\0') {
+        fputc('\r', fp_new);
+      }
+
+    } else {
+      fputc(c, fp_new);
     }
   }
+
+  remove_file("temp", fp_orig, true);
+  fclose(fp_new);
+  return true;
 }
 
 void remove_file(const char *file_name, FILE *fp, bool RRQ) {

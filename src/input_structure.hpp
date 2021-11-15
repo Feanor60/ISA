@@ -86,4 +86,5 @@ void add_ip_address(input_structure *store_args, std::string ip_address);
  * @name: add_port_number
  */
 void add_port_number(input_structure *store_args, std::size_t port_n);
+
 #endif

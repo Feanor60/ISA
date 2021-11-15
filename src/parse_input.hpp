@@ -66,10 +66,8 @@ int get_size(std::string *line, std::size_t *pos);
  *          no data mode means binary
  *  @retval: return integer which signifies data mode:
  *           -1 = error
- *           1 = ascii
- *           2 = netascii
- *           3 = binary
- *           4 = octet
+ *           1 = netascii
+ *           2 = octet
  */
 int get_data_mode(std::string *line, std::size_t *pos);
 

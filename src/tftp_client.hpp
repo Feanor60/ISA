@@ -40,7 +40,7 @@ bool start_tftp_clinet(input_structure *store_args);
  * @name: fill_sockaddr_in
  * @param store_args: structure with ip address and port
  * @param server: structure which we will be filled out
- * @brief: fill out a socket with information from user input
+ * @brief: fill out a sockaddr_in with information from user input
  * @retval: true on succes false on failure
  */
 bool fill_sockaddr_in(input_structure *store_args, struct sockaddr_in *server);
@@ -49,31 +49,15 @@ bool fill_sockaddr_in(input_structure *store_args, struct sockaddr_in *server);
  * @name: fill_sockaddr_in
  * @param store_args: structure with ip address and port
  * @param server6: structure which we will be filled out
- * @brief: fill out a socket with information from user input
+ * @brief: fill out a sockaddr_in6 with information from user input
  * @retval: true on succes false on failure
  */
 bool fill_sockaddr_in6(input_structure *store_args, struct sockaddr_in6 *server6);
 
 /**
- *  @name: request_read
- *  @brief: send read request to server
- *  @retval: returns true on server akcnowledging read request
- *           returns false on timeout #TODO edit as needed
- */
-bool request_read(input_structure *store_args);
-
-/**
- *  @name: request_write
- *  @brief: send write request to server
- *  @revatl: returns true on server akcnowledging write request
- *           returns false on timeout #TODO edit as needed
- */
-bool request_write(input_structure *store_args);
-
-/**
- * @name: build_request_read_header
+ * @name: build_tftp_request_read_header
  * @param buffer: pointer to buffer with tftp header and data
- * @param p: pointer to char in buffer
+ * @brief: build either RRQ or WRQ tftp header
  * @retval: pointer that points at end of tftp header in buffer 
  */
 char *build_tftp_request_header(input_structure *store_args, char *buffer);
@@ -91,15 +75,15 @@ bool handle_error(char *buffer);
  * @name: convert_from_netascii
  * @param buffer: char array that needs to be converted
  * @param count: lenght of buffer
- * @brief: convert from netascii to normal
+ * @brief: convert from netascii to binary
  */
-void convert_from_netascii(char *buffer, int count);
+bool convert_from_netascii(input_structure *store_args);
 
 /**
  * @name: remove_file
  * @param file_name: name of file to be removed
  * @param fp: file descriptor of read file
- * @brief: if reading fails close file descriptor and delete file
+ * @brief: closes file and removes it
  */
 void remove_file(const char* file_name, FILE *fp, bool RRQ);
 #endif
