@@ -35,6 +35,7 @@ $ ./mytftpclient
 ## Seznam odevzdaných souborů
 
 ```
+manual.pdf
 README.md
 Makefile
 src/main.cpp
