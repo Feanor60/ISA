@@ -34,7 +34,7 @@ $ ./mytftpclient
 
 ## Seznam odevzdaných souborů
 
-`
+```
 README.md
 Makefile
 src/main.cpp
@@ -44,4 +44,4 @@ src/parse_input.cpp
 src/parse_input.hpp
 src/tftp_client.cpp
 src/tftp_client.hpp
-`
+```
